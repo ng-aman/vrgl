@@ -7,4 +7,3 @@ pandas
 mitosheet
 poppler-utils
 xlsxwriter
-distutils
