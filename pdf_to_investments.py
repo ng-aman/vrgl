@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnableA
 import io
 import base64
 from operator import itemgetter
+import streamlit as st
 
 # from pathlib import Path
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
@@ -15,8 +16,8 @@ from langchain_core.runnables import chain
 
 import pandas as pd
 
-aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+aws_access_key_id = st.secrets["AWS_ACCESS_KEY_ID"]
+aws_secret_access_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
 
 
 bedrock_client = boto3.client(
