@@ -1,0 +1,9 @@
+langchain-core
+streamlit
+boto3
+pdf2image
+langchain-community
+pandas
+mitosheet
+poppler-utils
+xlsxwriter
