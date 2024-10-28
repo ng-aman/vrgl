@@ -19,6 +19,7 @@ import pandas as pd
 aws_access_key_id = st.secrets["AWS_ACCESS_KEY_ID"]
 aws_secret_access_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
 
+
 bedrock_client = boto3.client(
     service_name="bedrock-runtime",
     region_name="us-east-1",
@@ -32,6 +33,7 @@ with open("prompt.txt", "r") as f:
 
 
 def convert_pdf_to_images(pdf_paths: list):
+
     # declaring all pdf paths list
     inputs = list()
     # Convert PDF to images
@@ -41,11 +43,13 @@ def convert_pdf_to_images(pdf_paths: list):
         # converting to images
         images = convert_from_bytes(each_pdf.getvalue(), dpi=300)
         # Save each page as an in-memory image
+        # image_files= list()
         for idx, image in enumerate(images):
             image_dict = dict()
             image_file = io.BytesIO()
             image.save(image_file, format="JPEG")
             image_file.seek(0)
+            # image_files.append(image_file)
             image_dict["pdf_name"] = pdf_name
             image_dict["page_number"] = f"page_{idx+1}"
             image_dict["image_path"] = image_file
@@ -101,6 +105,8 @@ def get_body(messages):
 def get_response(body):
     print("getting a call")
     modelId = "anthropic.claude-3-sonnet-20240229-v1:0"
+    # modelId = 'anthropic.claude-3-haiku-20240307-v1:0'
+
     contentType = "application/json"
     accept = "application/json"
 
@@ -145,25 +151,18 @@ def get_aggregated_dataframe(pdf_files):
         "ticker",
         "type",
         "Present_unit_price",
-        "no.of_units",
         "date",
     ]
     df_main = pd.DataFrame(columns=columns)
     for each in response:
         # creating pandas dataframe
         df = pd.DataFrame(each["output"])
-        print("Columns before processing:", df.columns)
-
-        # Ensure no duplicate columns
-        df.columns = df.columns.str.strip()  # Remove whitespace
-        df = df.loc[:, ~df.columns.duplicated()]  # Remove duplicates
-
-        print("Columns after processing:", df.columns)
+        print(df.columns)
         print(df.shape)
         print("=" * 100)
-
         df["pdf_name"] = each["pdf_name"]
         df["page_number"] = each["page_number"]
+        # df= df[columns]
 
         # appending temp df to main df
         df_main = pd.concat([df_main, df], axis=0)
