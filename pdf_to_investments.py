@@ -7,18 +7,13 @@ import io
 import base64
 from operator import itemgetter
 import streamlit as st
-
-# from pathlib import Path
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_community.chat_models import BedrockChat
-
 from langchain_core.runnables import chain
-
 import pandas as pd
 
 aws_access_key_id = st.secrets["AWS_ACCESS_KEY_ID"]
 aws_secret_access_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
-
 
 bedrock_client = boto3.client(
     service_name="bedrock-runtime",
@@ -27,36 +22,25 @@ bedrock_client = boto3.client(
     aws_secret_access_key=aws_secret_access_key,
 )
 
-# reading prompt
+# Reading prompt
 with open("prompt.txt", "r") as f:
     prompt = f.read()
 
 
 def convert_pdf_to_images(pdf_paths: list):
-
-    # declaring all pdf paths list
     inputs = list()
-    # Convert PDF to images
     for each_pdf in pdf_paths:
-        # getting pdf name
         pdf_name = each_pdf.name
-        # converting to images
         images = convert_from_bytes(each_pdf.getvalue(), dpi=300)
-        # Save each page as an in-memory image
-        # image_files= list()
         for idx, image in enumerate(images):
             image_dict = dict()
             image_file = io.BytesIO()
             image.save(image_file, format="JPEG")
             image_file.seek(0)
-            # image_files.append(image_file)
             image_dict["pdf_name"] = pdf_name
-            image_dict["page_number"] = f"page_{idx+1}"
+            image_dict["page_number"] = f"page_{idx + 1}"
             image_dict["image_path"] = image_file
-
-            # appending images to pdf paths
             inputs.append(image_dict)
-
     return inputs
 
 
@@ -103,19 +87,19 @@ def get_body(messages):
 
 
 def get_response(body):
-    print("getting a call")
-    modelId = "anthropic.claude-3-sonnet-20240229-v1:0"
-    # modelId = 'anthropic.claude-3-haiku-20240307-v1:0'
+    try:
+        modelId = "anthropic.claude-3-sonnet-20240229-v1:0"
+        contentType = "application/json"
+        accept = "application/json"
 
-    contentType = "application/json"
-    accept = "application/json"
-
-    response = bedrock_client.invoke_model(
-        modelId=modelId, contentType=contentType, accept=accept, body=body
-    )
-    response_body = json.loads(response.get("body").read())
-    print(response_body)
-    return response_body
+        response = bedrock_client.invoke_model(
+            modelId=modelId, contentType=contentType, accept=accept, body=body
+        )
+        response_body = json.loads(response.get("body").read())
+        return response_body
+    except Exception as e:
+        st.error(f"Error during response parsing: {e}")
+        return None
 
 
 @chain
@@ -124,26 +108,33 @@ def extract_text_chain(inputs):
     messages = get_messages(image_b64)
     body = get_body(messages)
     response_body = get_response(body)
-    inputs["text"] = response_body["content"][0]["text"]
-    inputs["input_tokens"] = response_body["usage"]["input_tokens"]
-    inputs["output_tokens"] = response_body["usage"]["output_tokens"]
+
+    if (
+        response_body
+        and "content" in response_body
+        and isinstance(response_body["content"], list)
+    ):
+        inputs["text"] = response_body["content"][0].get("text", "")
+        inputs["input_tokens"] = response_body.get("usage", {}).get("input_tokens", 0)
+        inputs["output_tokens"] = response_body.get("usage", {}).get("output_tokens", 0)
+    else:
+        inputs["text"] = ""
+        inputs["input_tokens"] = 0
+        inputs["output_tokens"] = 0
+
     return inputs
 
 
-# creating output parser chain
 mapper = RunnableParallel({"output": itemgetter("text") | JsonOutputParser()})
 output_parser_chain = RunnableAssign(mapper)
 
-# creating final chain
 final_chain = extract_text_chain | output_parser_chain
 
 
 def get_aggregated_dataframe(pdf_files):
-    # getting inputs
     inputs = convert_pdf_to_images(pdf_paths=pdf_files)
-    # getting response
     response = final_chain.batch(inputs)
-    # converting to excel
+
     columns = [
         "pdf_name",
         "page_number",
@@ -154,20 +145,13 @@ def get_aggregated_dataframe(pdf_files):
         "date",
     ]
     df_main = pd.DataFrame(columns=columns)
+
     for each in response:
-        # creating pandas dataframe
-        df = pd.DataFrame(each["output"])
-        print(df.columns)
-        print(df.shape)
-        print("=" * 100)
-        df["pdf_name"] = each["pdf_name"]
-        df["page_number"] = each["page_number"]
-        # df= df[columns]
+        if "output" in each:
+            df = pd.DataFrame(each["output"])
+            df["pdf_name"] = each.get("pdf_name", "")
+            df["page_number"] = each.get("page_number", "")
+            df_main = pd.concat([df_main, df], axis=0)
 
-        # appending temp df to main df
-        df_main = pd.concat([df_main, df], axis=0)
-
-    # reset index
     df_main = df_main.reset_index(drop=True)
-
     return df_main
