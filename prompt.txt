@@ -7,6 +7,7 @@ Here are the steps to complete this task:
    - Ticker (if available, or infer if possible)
    - Type of investment (e.g., stock, bond, mutual fund, etc.)
    - Present unit price
+   - No.of units
    - Date as of current holdings existing (in dd/mm/yyyy format)
 
 2. If the ticker and type of investment information are not provided in the image, use your knowledge to infer that information if possible. If it is not possible, leave these fields empty with null.
@@ -20,6 +21,7 @@ Here are the steps to complete this task:
     "ticker": "[Ticker or null]",
     "type": "[Type or null]",
     "Present_unit_price": [Value or null],
+    "no_of_units": [Value or null],
     "date": "[Date (dd/mm/yyyy) or null]"
   },
   ...
