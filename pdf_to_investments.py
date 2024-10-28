@@ -151,6 +151,7 @@ def get_aggregated_dataframe(pdf_files):
         "ticker",
         "type",
         "Present_unit_price",
+        "no.of_units",
         "date",
     ]
     df_main = pd.DataFrame(columns=columns)
